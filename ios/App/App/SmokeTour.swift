@@ -19,6 +19,8 @@ final class SmokeTour {
         for name in Self.pages {
             try? FileManager.default.removeItem(at: smokeDir.appendingPathComponent("now-\(name)"))
             try? FileManager.default.removeItem(at: smokeDir.appendingPathComponent("ack-\(name)"))
+            try? FileManager.default.removeItem(at: smokeDir.appendingPathComponent("bottom-\(name)"))
+            try? FileManager.default.removeItem(at: smokeDir.appendingPathComponent("ack-bottom-\(name)"))
         }
         try? FileManager.default.removeItem(at: smokeDir.appendingPathComponent("done.txt"))
         try? FileManager.default.removeItem(at: smokeDir.appendingPathComponent("result.txt"))
@@ -71,17 +73,22 @@ final class SmokeTour {
         }
     }
 
-    /// 滚到底：runner 收到 ack 后会等 2 秒再拍"整页"第二张图。
-    /// 这里留 5 秒再切下一页（末页即退出 App），避免 simctl 截图慢于切页，
-    /// 拍到的是下一页或桌面壁纸。
+    /// 首屏拍完后滚到底，再喊 runner 拍第二张。
+    /// App 会一直等到 `ack-bottom-<name>` 才翻页，所以第二张不可能拍到下一页。
     private func scrollToBottom(_ index: Int) {
         guard let app else {
             fail("AppModel 丢失")
             return
         }
+        let name = Self.pages[index]
         app.scrollToBottomTick += 1
-        delay(5.0) { [weak self] in
-            self?.runPage(index + 1)
+        // 等滚动动画结束
+        delay(0.8) { [weak self] in
+            guard let self else { return }
+            self.writeMarker("bottom-\(name)")
+            self.waitForAck("bottom-\(name)") { [weak self] in
+                self?.runPage(index + 1)
+            }
         }
     }
 

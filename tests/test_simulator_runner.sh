@@ -40,16 +40,21 @@ case "$cmd" in
         names="01-route 02-scan 03-detail-airpods 04-detail-sony 05-handbook" ;;
       autotest) names="" ;;
     esac
-    for name in $names; do
-      : > "$dir/now-$name"
-      deadline=$(( $(date +%s) + 30 ))
-      while [ ! -f "$dir/ack-$name" ]; do
+    wait_ack() {
+      local deadline=$(( $(date +%s) + 30 ))
+      while [ ! -f "$dir/$1" ]; do
         if [ "$(date +%s)" -gt "$deadline" ]; then
-          echo "mock app: ack timeout $name" >&2
+          echo "mock app: ack timeout $1" >&2
           exit 1
         fi
         sleep 0.1
       done
+    }
+    for name in $names; do
+      : > "$dir/now-$name"
+      wait_ack "ack-$name"
+      : > "$dir/bottom-$name"
+      wait_ack "ack-bottom-$name"
     done
     if [ "${MOCK_EARLY_EXIT:-0}" = "1" ]; then
       echo "mock app: exiting early" >&2

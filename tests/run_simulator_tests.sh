@@ -21,7 +21,8 @@ container=$(xcrun simctl get_app_container "$udid" "$bundle_id" data)
 directory="$container/tmp/$mode"
 mkdir -p "$directory" "$mode"
 rm -f "$mode"/*.png  # 清掉上次运行残留的截图，防旧图掩盖缺页
-rm -f "$directory"/done.txt "$directory"/result.txt "$directory"/now-* "$directory"/ack-*
+rm -f "$directory"/done.txt "$directory"/result.txt \
+      "$directory"/now-* "$directory"/ack-* "$directory"/bottom-* 2>/dev/null || true
 pid=
 cleanup() {
   if [ -n "$pid" ]; then kill "$pid" 2>/dev/null || true; wait "$pid" 2>/dev/null || true; fi
@@ -34,12 +35,17 @@ pid=$!
 poll_seconds=${BT_POLL_SECONDS:-300}
 for ((second=0; second<poll_seconds; second++)); do
   for name in $names; do
+    # 首屏：App 写 now-<name>，拍完写 ack-<name>
     if [ -f "$directory/now-$name" ] && [ ! -f "$directory/ack-$name" ]; then
+      echo "runner: detected now-$name" >&2
       xcrun simctl io "$udid" screenshot "$mode/$name.png"
-      # 先 ack 让 App 开始滚动，再等动画结束拍"整页"第二张
       : > "$directory/ack-$name"
-      sleep 2
+    fi
+    # 滚到底：App 滚完写 bottom-<name>，并一直等到 ack-bottom-<name> 才翻页
+    if [ -f "$directory/bottom-$name" ] && [ ! -f "$directory/ack-bottom-$name" ]; then
+      echo "runner: detected bottom-$name" >&2
       xcrun simctl io "$udid" screenshot "$mode/bottom-$name.png"
+      : > "$directory/ack-bottom-$name"
     fi
   done
   if [ -f "$directory/done.txt" ]; then break; fi
