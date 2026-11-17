@@ -37,14 +37,18 @@ struct RouteView: View {
         ControlAnalyzer.mcsPeripheral(in: relevantPeripherals)
     }
 
+    private var heroVersionText: String {
+        versionHint.verified ? "5.2 已确认" : "5.2 未验证"
+    }
+
     var body: some View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: 16) {
                     if app.demoMode { DemoBanner() }
                     hero
-                    versionCard
                     controlCard
+                    versionCard
                     detailCard
                     evidenceCard
                     footer
@@ -107,6 +111,15 @@ struct RouteView: View {
                 Text(verdict.badge)
                     .font(.footnote.weight(.semibold))
                     .foregroundStyle(.white.opacity(0.88))
+                Spacer(minLength: 6)
+                // 5.2 结论直接放在结论卡上，不用往下翻
+                Text(heroVersionText)
+                    .font(.caption2.weight(.bold))
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(Color.white.opacity(versionHint.verified ? 0.30 : 0.16))
+                    .clipShape(Capsule())
             }
 
             Text(verdict.summary)
@@ -201,7 +214,7 @@ struct RouteView: View {
                     .foregroundStyle(Theme.accent)
                 Text("控制台").font(.headline)
                 Spacer(minLength: 4)
-                Badge(text: controls.mediaTransportAvailable ? "MCS 可直控" : "音量可调",
+                Badge(text: controls.mediaTransportAvailable ? "MCS 可写" : "音量可调",
                       color: controls.mediaTransportAvailable ? Theme.green : Theme.accent)
             }
 
@@ -250,6 +263,15 @@ struct RouteView: View {
                 Text(message)
                     .font(.caption2)
                     .foregroundStyle(Theme.secondaryText)
+            }
+
+            if !controls.mediaTransportAvailable {
+                Text("没有发现标准 MCS 控制点（0x2BA4）：这三个按钮置灰，"
+                    + "播放/暂停仍可用锁屏或耳机按键——iOS 没给第三方 App 发送 AVRCP 的 API。")
+                    .font(.caption2)
+                    .foregroundStyle(Theme.tertiaryText)
+                    .lineSpacing(2)
+                    .fixedSize(horizontal: false, vertical: true)
             }
 
             Divider()

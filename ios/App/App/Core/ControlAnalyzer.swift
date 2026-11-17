@@ -64,7 +64,7 @@ enum ControlAnalyzer {
             volumeDetail: "系统音量滑杆；走 A2DP 时绝对音量会同步到耳机",
             mediaTransportAvailable: mcs != nil,
             mediaTransportDetail: mcs != nil
-                ? "App 可直接发播放/暂停/切歌（标准 MCS 0x2BA4）"
+                ? "设备暴露了标准 MCS 控制点；App 可写播放指令（前提是设备自己承担媒体播放器）"
                 : "系统 AVRCP：耳机按键/锁屏可控制，App 没有公开发送 API",
             noiseControlAvailable: false,
             noiseControlDetail: "厂商私有协议（iOS 无统一 API），需厂商 App",
