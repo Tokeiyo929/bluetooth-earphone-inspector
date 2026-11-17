@@ -1,9 +1,11 @@
+import Combine
 import SwiftUI
 import UIKit
 
 struct RouteView: View {
     @EnvironmentObject var app: AppModel
     @EnvironmentObject var routeModel: AudioRouteModel
+    @State private var systemVolume: Float = AVAudioSession.sharedInstance().outputVolume
 
     private var verdict: ProtocolVerdict { routeModel.verdict }
     private var snapshot: AudioRouteSnapshot { routeModel.snapshot }
@@ -136,8 +138,28 @@ struct RouteView: View {
                     .foregroundStyle(Theme.secondaryText)
             }
 
-            SystemVolumeSlider()
-                .frame(height: 30)
+            HStack(spacing: 10) {
+                Image(systemName: "speaker.fill")
+                    .font(.caption2)
+                    .foregroundStyle(Theme.tertiaryText)
+                SystemVolumeSlider()
+                    .frame(height: 30)
+                Text("\(Int((systemVolume * 100).rounded()))%")
+                    .font(.caption.monospacedDigit().weight(.semibold))
+                    .foregroundStyle(Theme.secondaryText)
+                    .frame(width: 40, alignment: .trailing)
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 6)
+            // MPVolumeView 在模拟器里不画轨道，给它垫一层可见面板，
+            // 免得看着像一条空白
+            .background(Color.primary.opacity(0.045))
+            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .strokeBorder(Color.primary.opacity(0.07), lineWidth: 1)
+            )
+            .onReceive(Self.volumePublisher) { systemVolume = $0 }
 
             Text("拖动滑杆调节系统音量。走 A2DP 时，iPhone 会把音量同步给耳机（绝对音量协议），"
                 + "所以这副滑杆实际控制的就是耳机音量。")
@@ -233,6 +255,10 @@ struct RouteView: View {
         formatter.dateFormat = "HH:mm"
         return formatter
     }()
+
+    /// outputVolume 是 KVO 可观察的公开属性；拖滑杆时同步刷新百分比。
+    private static let volumePublisher = AVAudioSession.sharedInstance()
+        .publisher(for: \.outputVolume)
 
     private var buildNumber: String {
         Bundle.main.object(forInfoDictionaryKey: "BTBuild") as? String ?? "dev"

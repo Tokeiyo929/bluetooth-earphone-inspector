@@ -409,8 +409,12 @@ struct PeripheralDetailView: View {
                         }
                     }
                     .padding(12)
-                    .background(Color.primary.opacity(0.035))
+                    .background(Color.primary.opacity(0.05))
                     .clipShape(RoundedRectangle(cornerRadius: 13, style: .continuous))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 13, style: .continuous)
+                            .strokeBorder(Color.primary.opacity(0.07), lineWidth: 1)
+                    )
                 }
             }
         }

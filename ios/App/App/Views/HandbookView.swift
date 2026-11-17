@@ -158,9 +158,9 @@ struct HandbookView: View {
         HStack(alignment: .top, spacing: 8) {
             Text(index)
                 .font(.caption2.weight(.bold))
-                .foregroundStyle(Theme.accent)
+                .foregroundStyle(.white)
                 .frame(width: 18, height: 18)
-                .background(Theme.accent.opacity(0.14))
+                .background(Theme.accent)
                 .clipShape(Circle())
             Text(text)
                 .font(.caption)

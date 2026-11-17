@@ -217,12 +217,15 @@ private struct FollowSmokeScroll: ViewModifier {
     func body(content: Content) -> some View {
         ScrollViewReader { proxy in
             content
-                .task(id: tick) {
-                    guard tick > 0 else { return }
+                // 只能监听"变化"，不能用 .task(id:)：页面后出现时 id 已经 >0，
+                // 会在展示瞬间就把首屏滚到底，首张截图拍不到页面顶部。
+                .onChange(of: tick) { newValue in
+                    guard newValue > 0 else { return }
                     // 等页签切换 / 导航推入后的布局稳定再滚
-                    try? await Task.sleep(nanoseconds: 200_000_000)
-                    withAnimation(.easeInOut(duration: 0.25)) {
-                        proxy.scrollTo(SmokeScroll.anchorID, anchor: .bottom)
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+                        withAnimation(.easeInOut(duration: 0.25)) {
+                            proxy.scrollTo(SmokeScroll.anchorID, anchor: .bottom)
+                        }
                     }
                 }
         }
