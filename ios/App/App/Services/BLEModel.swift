@@ -140,13 +140,22 @@ final class BLEModel: NSObject, ObservableObject {
         let interested = [
             CBUUID(string: "180F"),
             CBUUID(string: "180A"),
+            CBUUID(string: "1844"),
+            CBUUID(string: "1848"),
+            CBUUID(string: "1849"),
             CBUUID(string: "184E"),
             CBUUID(string: "1850")
         ]
         let connected = central.retrieveConnectedPeripherals(withServices: interested)
         for peripheral in connected {
             cbPeripherals[peripheral.identifier.uuidString] = peripheral
+            peripheral.delegate = self
             upsertSystemPeripheral(peripheral)
+            // 系统已连接的设备不会走 connect()，这里补一次服务发现，
+            // 否则 MCS/LE Audio 服务永远读不到，控制台与版本判定会漏。
+            if peripheral.services == nil || peripheral.services?.isEmpty == true {
+                peripheral.discoverServices(nil)
+            }
         }
     }
 

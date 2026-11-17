@@ -279,6 +279,69 @@ enum CoreRegression {
             try require(ChipAnalyzer.firstBytes("F0", count: 2) == nil, "字节不足应返回 nil")
         }
 
+        // MARK: 当前链路页：版本卡 + 控制台
+
+        check("版本卡: A2DP 且无 LE Audio → 未验证") {
+            let hint = VersionAnalyzer.hint(for: DemoData.route(), leAudioOverBLE: false)
+            try require(!hint.verified, "不应判定为已验证")
+            try require(hint.badge == "未验证", "得到 \(hint.badge)")
+            try require(hint.evidence.joined().contains("不等于"), "应说明没证据不等于低于 5.2")
+        }
+        check("版本卡: LE Audio 端口 → ≥5.2") {
+            let hint = VersionAnalyzer.hint(for: snapshot(outputType: "BluetoothLE"), leAudioOverBLE: false)
+            try require(hint.verified, "LE Audio 端口应确认 5.2")
+            try require(hint.badge == "≥5.2", "得到 \(hint.badge)")
+        }
+        check("版本卡: BLE 侧发现 LE Audio 服务也能确认") {
+            let hint = VersionAnalyzer.hint(for: DemoData.route(), leAudioOverBLE: true)
+            try require(hint.verified, "BLE 侧证据应采信")
+            try require(hint.title.contains("5.2"), "标题 \(hint.title)")
+        }
+        check("控制台: 音量恒可用") {
+            let capabilities = ControlAnalyzer.capabilities(in: DemoData.peripherals())
+            try require(capabilities.volumeAvailable, "音量应可用")
+        }
+        check("控制台: 只认当前链路这台设备") {
+            let airpodsRelevant = ControlAnalyzer.relevantPeripherals(
+                in: DemoData.peripherals(),
+                routeName: "小明の AirPods Pro 2"
+            )
+            try require(airpodsRelevant.count == 1, "应只返回 1 台")
+            try require(airpodsRelevant[0].hasAppleBroadcast, "应命中 AirPods")
+            try require(ControlAnalyzer.mcsPeripheral(in: airpodsRelevant) == nil,
+                        "AirPods 不能借用旁边 Sony 的 MCS")
+            try require(!ControlAnalyzer.hasLEAudio(airpodsRelevant[0]),
+                        "AirPods 演示数据没有 LE Audio")
+
+            let sonyRelevant = ControlAnalyzer.relevantPeripherals(
+                in: DemoData.peripherals(),
+                routeName: "WH-1000XM5"
+            )
+            try require(sonyRelevant.count == 1 && sonyRelevant[0].id == "DEMO-XM5", "应命中 Sony")
+            try require(ControlAnalyzer.hasLEAudio(sonyRelevant[0]), "Sony 应有 LE Audio 证据")
+            try require(ControlAnalyzer.mcsPeripheral(in: sonyRelevant) != nil, "Sony 应有 MCS")
+        }
+        check("控制台: Sony 暴露 MCS → 播放可直控") {
+            try require(ControlAnalyzer.mcsPeripheral(in: DemoData.peripherals())?.id == "DEMO-XM5",
+                        "应找到 Sony 的 MCS")
+            let capabilities = ControlAnalyzer.capabilities(in: DemoData.peripherals())
+            try require(capabilities.mediaTransportAvailable, "MCS 存在时应可直控")
+        }
+        check("控制台: 只有 AirPods 时没有 MCS") {
+            guard let airpods = DemoData.peripherals().first(where: { $0.hasAppleBroadcast }) else {
+                try require(false, "缺 AirPods 演示设备")
+                return
+            }
+            let capabilities = ControlAnalyzer.capabilities(in: [airpods])
+            try require(!capabilities.mediaTransportAvailable, "Apple 演示设备不应有 MCS")
+            try require(capabilities.mediaTransportDetail.contains("AVRCP"), "应说明走系统 AVRCP")
+        }
+        check("控制台: 厂商私有可写通道有计数") {
+            let capabilities = ControlAnalyzer.capabilities(in: DemoData.peripherals())
+            try require(capabilities.vendorWritableCount > 0, "AirPods 私有服务应统计出可写特征")
+            try require(!capabilities.noiseControlAvailable, "降噪不应假装可直控")
+        }
+
         // MARK: 特征值解码
 
         check("解码: 电池 2A19") {

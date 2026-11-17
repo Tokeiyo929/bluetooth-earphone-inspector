@@ -106,9 +106,11 @@ jobs:
             ios/App/App/Core/BluetoothProtocolCatalog.swift \
             ios/App/App/Core/AppleAdvertisement.swift \
             ios/App/App/Core/RouteAnalyzer.swift \
+            ios/App/App/Core/VersionAnalyzer.swift \
             ios/App/App/Core/PeripheralModels.swift \
             ios/App/App/Core/CompanyIdentifiers.swift \
             ios/App/App/Core/ChipAnalyzer.swift \
+            ios/App/App/Core/ControlAnalyzer.swift \
             ios/App/App/Core/DemoData.swift \
             ios/App/App/Core/CoreRegression.swift \
             tests/CoreTests.swift \

@@ -6,11 +6,36 @@ import UIKit
 struct RouteView: View {
     @EnvironmentObject var app: AppModel
     @EnvironmentObject var routeModel: AudioRouteModel
+    @EnvironmentObject var ble: BLEModel
     @State private var systemVolume: Float = AVAudioSession.sharedInstance().outputVolume
+    @State private var isPlaying = false
 
     private var verdict: ProtocolVerdict { routeModel.verdict }
     private var snapshot: AudioRouteSnapshot { routeModel.snapshot }
     private var detailRows: [(String, String)] { RouteAnalyzer.detailRows(snapshot) }
+
+    private var versionHint: VersionHint {
+        VersionAnalyzer.hint(for: snapshot, leAudioOverBLE: bleLEAudioEvidence)
+    }
+
+    /// 只认当前链路这台设备；旁边另一副 LE Audio 耳机不能替它作证。
+    private var relevantPeripherals: [PeripheralSnapshot] {
+        ControlAnalyzer.relevantPeripherals(in: ble.peripherals,
+                                            routeName: snapshot.bluetoothOutput?.name)
+    }
+
+    private var bleLEAudioEvidence: Bool {
+        guard snapshot.hasBluetoothOutput else { return false }
+        return relevantPeripherals.contains { ControlAnalyzer.hasLEAudio($0) }
+    }
+
+    private var controls: ControlCapabilities {
+        ControlAnalyzer.capabilities(in: relevantPeripherals)
+    }
+
+    private var mcsDevice: PeripheralSnapshot? {
+        ControlAnalyzer.mcsPeripheral(in: relevantPeripherals)
+    }
 
     var body: some View {
         NavigationStack {
@@ -18,8 +43,9 @@ struct RouteView: View {
                 VStack(spacing: 16) {
                     if app.demoMode { DemoBanner() }
                     hero
+                    versionCard
+                    controlCard
                     detailCard
-                    volumeCard
                     evidenceCard
                     footer
                 }
@@ -124,19 +150,59 @@ struct RouteView: View {
         .card()
     }
 
-    // MARK: - 音量与控制边界
+    // MARK: - 蓝牙版本 5.2？
 
-    private var volumeCard: some View {
+    private var versionCard: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(spacing: 8) {
-                Image(systemName: "speaker.wave.2.fill")
+                Image(systemName: "number")
+                    .font(.subheadline)
+                    .foregroundStyle(versionHint.verified ? Theme.green : Theme.orange)
+                Text("蓝牙版本 5.2？").font(.headline)
+                Spacer(minLength: 4)
+                Badge(text: versionHint.badge,
+                      color: versionHint.verified ? Theme.green : Theme.orange)
+            }
+
+            Text(versionHint.title)
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(Color.primary)
+
+            ForEach(versionHint.evidence.indices, id: \.self) { index in
+                HStack(alignment: .top, spacing: 8) {
+                    Image(systemName: versionHint.verified
+                          ? "checkmark.circle.fill" : "exclamationmark.circle")
+                        .font(.caption)
+                        .foregroundStyle(versionHint.verified ? Theme.green : Theme.orange)
+                        .padding(.top, 1)
+                    Text(versionHint.evidence[index])
+                        .font(.caption)
+                        .foregroundStyle(Theme.secondaryText)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+
+            Divider()
+            Text(versionHint.action)
+                .font(.caption2)
+                .foregroundStyle(Theme.tertiaryText)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .card()
+    }
+
+    // MARK: - 控制台（所有能调的功能）
+
+    private var controlCard: some View {
+        VStack(alignment: .leading, spacing: 11) {
+            HStack(spacing: 8) {
+                Image(systemName: "slider.horizontal.3")
                     .font(.subheadline)
                     .foregroundStyle(Theme.accent)
-                Text("耳机音量").font(.headline)
+                Text("控制台").font(.headline)
                 Spacer(minLength: 4)
-                Text(snapshot.hasBluetoothOutput ? "A2DP 绝对音量" : "系统输出音量")
-                    .font(.caption2)
-                    .foregroundStyle(Theme.secondaryText)
+                Badge(text: controls.mediaTransportAvailable ? "MCS 可直控" : "音量可调",
+                      color: controls.mediaTransportAvailable ? Theme.green : Theme.accent)
             }
 
             HStack(spacing: 10) {
@@ -162,25 +228,96 @@ struct RouteView: View {
             )
             .onReceive(Self.volumePublisher) { systemVolume = $0 }
 
-            Text("拖动滑杆调节系统音量。走 A2DP 时，iPhone 会把音量同步给耳机（绝对音量协议），"
-                + "所以这副滑杆实际控制的就是耳机音量。")
-                .font(.caption2)
-                .foregroundStyle(Theme.secondaryText)
-                .lineSpacing(2)
+            HStack(spacing: 10) {
+                transportButton("backward.fill", enabled: controls.mediaTransportAvailable) {
+                    guard let device = mcsDevice else { return }
+                    ble.writeMediaControl(0x04, peripheralID: device.id)
+                }
+                transportButton(isPlaying ? "pause.fill" : "play.fill",
+                                enabled: controls.mediaTransportAvailable) {
+                    guard let device = mcsDevice else { return }
+                    let opcode: UInt8 = isPlaying ? 0x02 : 0x01
+                    isPlaying.toggle()
+                    ble.writeMediaControl(opcode, peripheralID: device.id)
+                }
+                transportButton("forward.fill", enabled: controls.mediaTransportAvailable) {
+                    guard let device = mcsDevice else { return }
+                    ble.writeMediaControl(0x05, peripheralID: device.id)
+                }
+            }
+
+            if let message = ble.controlMessage {
+                Text(message)
+                    .font(.caption2)
+                    .foregroundStyle(Theme.secondaryText)
+            }
 
             Divider()
 
-            Text("控制边界")
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(Theme.secondaryText)
-            Text("播放/暂停/切歌由蓝牙 AVRCP 交给系统与耳机按键；"
-                + "降噪、通透、EQ、固件升级属于厂商私有 BLE 协议，iOS 没有统一 API。"
-                + "本 App 能直接发的是「音量」；耳机若暴露标准 MCS，详情页还能发播放控制。")
-                .font(.caption2)
-                .foregroundStyle(Theme.tertiaryText)
-                .lineSpacing(2)
+            capabilityRow(title: "音量",
+                          available: controls.volumeAvailable,
+                          status: controls.volumeAvailable ? "可用" : "不可用",
+                          detail: controls.volumeDetail,
+                          tone: Theme.green)
+            capabilityRow(title: "播放 / 暂停 / 切歌",
+                          available: controls.mediaTransportAvailable,
+                          status: controls.mediaTransportAvailable ? "App 可直控" : "系统 AVRCP",
+                          detail: controls.mediaTransportDetail,
+                          tone: controls.mediaTransportAvailable ? Theme.green : Theme.orange)
+            capabilityRow(title: "降噪 / 通透 / EQ",
+                          available: controls.noiseControlAvailable,
+                          status: "厂商 App",
+                          detail: controls.noiseControlDetail,
+                          tone: Theme.orange)
+            capabilityRow(title: "厂商私有通道",
+                          available: controls.vendorWritableCount > 0,
+                          status: controls.vendorWritableCount > 0
+                            ? "\(controls.vendorWritableCount) 个可写" : "无",
+                          detail: controls.vendorWritableDetail,
+                          tone: Theme.indigo)
         }
         .card()
+    }
+
+    private func transportButton(_ systemName: String,
+                                 enabled: Bool,
+                                 action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Image(systemName: systemName)
+                .font(.system(size: 17, weight: .semibold))
+                .foregroundStyle(enabled ? Theme.accent : Theme.tertiaryText)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 11)
+                .background((enabled ? Theme.accent : Theme.grey).opacity(0.10))
+                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+        }
+        .buttonStyle(.plain)
+        .disabled(!enabled)
+    }
+
+    private func capabilityRow(title: String,
+                               available: Bool,
+                               status: String,
+                               detail: String,
+                               tone: Color) -> some View {
+        VStack(alignment: .leading, spacing: 3) {
+            HStack(spacing: 6) {
+                Image(systemName: available ? "checkmark.circle.fill" : "minus.circle")
+                    .font(.caption2)
+                    .foregroundStyle(tone)
+                Text(title)
+                    .font(.caption.weight(.semibold))
+                Spacer(minLength: 4)
+                Text(status)
+                    .font(.caption2.weight(.medium))
+                    .foregroundStyle(tone)
+            }
+            Text(detail)
+                .font(.caption2)
+                .foregroundStyle(Theme.tertiaryText)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(.vertical, 2)
     }
 
     private var evidenceCard: some View {

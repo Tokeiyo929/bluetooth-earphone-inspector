@@ -203,6 +203,40 @@ struct PeripheralDetailView: View {
                         : chip.confidence == "中" ? Theme.orange : Theme.grey)
             }
 
+            // 版本结论放最上面，免得用户在详情页里翻不到
+            HStack(alignment: .top, spacing: 8) {
+                Image(systemName: "number")
+                    .font(.caption)
+                    .foregroundStyle(chip.versionVerdict.contains("5.2") ? Theme.green : Theme.orange)
+                    .padding(.top, 1)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("蓝牙版本")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(Theme.secondaryText)
+                    Text(chip.versionVerdict)
+                        .font(.footnote.weight(.semibold))
+                        .foregroundStyle(Color.primary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                Spacer(minLength: 4)
+                Badge(text: chip.versionVerdict.contains("5.2") ? "≥5.2" : "未验证",
+                      color: chip.versionVerdict.contains("5.2") ? Theme.green : Theme.orange)
+            }
+            ForEach(chip.versionEvidence.indices, id: \.self) { index in
+                HStack(alignment: .top, spacing: 8) {
+                    Image(systemName: "checkmark.circle")
+                        .font(.caption2)
+                        .foregroundStyle(Theme.secondaryText)
+                        .padding(.top, 2)
+                    Text(chip.versionEvidence[index])
+                        .font(.caption)
+                        .foregroundStyle(Theme.secondaryText)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+
+            Divider()
+
             if let brand = chip.brand {
                 InfoRow(title: "品牌", value: brand, titleWidth: 64)
             }
@@ -235,35 +269,6 @@ struct PeripheralDetailView: View {
                             .textSelection(.enabled)
                     }
                     .padding(.vertical, 1)
-                }
-            }
-
-            Divider()
-
-            HStack(alignment: .top, spacing: 8) {
-                Image(systemName: "number")
-                    .font(.caption)
-                    .foregroundStyle(chip.versionVerdict.contains("5.2") ? Theme.green : Theme.orange)
-                    .padding(.top, 1)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("蓝牙版本")
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(Theme.secondaryText)
-                    Text(chip.versionVerdict)
-                        .font(.footnote.weight(.semibold))
-                        .foregroundStyle(Color.primary)
-                }
-            }
-            ForEach(chip.versionEvidence.indices, id: \.self) { index in
-                HStack(alignment: .top, spacing: 8) {
-                    Image(systemName: "checkmark.circle")
-                        .font(.caption2)
-                        .foregroundStyle(Theme.secondaryText)
-                        .padding(.top, 2)
-                    Text(chip.versionEvidence[index])
-                        .font(.caption)
-                        .foregroundStyle(Theme.secondaryText)
-                        .fixedSize(horizontal: false, vertical: true)
                 }
             }
 
