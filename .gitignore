@@ -1,0 +1,22 @@
+# Xcode
+ios/App/BTInspector.xcodeproj/
+ios/App/App/Info.plist
+ios/App/build/
+ios/App/*.log
+DerivedData/
+*.xcuserstate
+xcuserdata/
+
+# 测试产物
+smoke/
+autotest/
+*-console.txt
+*.log
+
+# Python
+__pycache__/
+*.pyc
+
+# 系统
+.DS_Store
+Thumbs.db

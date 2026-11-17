@@ -1,0 +1,180 @@
+name: Build unsigned iOS ipa
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - "ios/**"
+      - "tests/**"
+      - "tools/**"
+      - ".github/workflows/build-ios.yml"
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Generate Xcode project
+        working-directory: ios/App
+        run: |
+          brew install xcodegen
+          # 构建号进 Info.plist（BTBuild），App 首页显示「构建 #N」
+          export BT_BUILD="${GITHUB_RUN_NUMBER}"
+          xcodegen generate
+
+      - name: Build device app (unsigned)
+        working-directory: ios/App
+        run: |
+          set -o pipefail
+          if xcodebuild -project BTInspector.xcodeproj -scheme BTInspector \
+            -configuration Release -sdk iphoneos -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGN_IDENTITY="" 2>&1 | tee build-device.log | tail -60; then
+            echo "BUILD_OK"
+          else
+            grep -E "error:" build-device.log | sort -u | head -40 | while IFS= read -r line; do
+              echo "::error::$line"
+            done
+            exit 1
+          fi
+
+      - name: Upload build log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-log
+          path: ios/App/build-device.log
+          if-no-files-found: ignore
+
+      - name: Package IPA
+        run: |
+          APP=ios/App/build/Build/Products/Release-iphoneos/BTInspector.app
+          test -f "$APP/AppIcon60x60@2x.png" || echo "warning: no compiled app icon (simulator only?)"
+          mkdir -p Payload
+          cp -R "$APP" Payload/
+          # 显示名：打包态 ASCII（SideStore appIdName 限制），中文名走 zh-Hans 本地化
+          python3 - <<'PYEOF'
+          import plistlib, os
+          app = "Payload/BTInspector.app"
+          info = os.path.join(app, "Info.plist")
+          with open(info, "rb") as handle:
+              data = plistlib.load(handle)
+          data["CFBundleDisplayName"] = "BT Inspector"
+          with open(info, "wb") as handle:
+              plistlib.dump(data, handle, fmt=plistlib.FMT_BINARY)
+          loc = os.path.join(app, "zh-Hans.lproj")
+          os.makedirs(loc, exist_ok=True)
+          with open(os.path.join(loc, "InfoPlist.strings"), "w", encoding="utf-8") as handle:
+              handle.write('"CFBundleDisplayName" = "耳机协议";\n"CFBundleName" = "耳机协议";\n')
+          print("patched display names for SideStore")
+          PYEOF
+          zip -qry bt-inspector-unsigned.ipa Payload
+          rm -rf Payload
+          ls -lh bt-inspector-unsigned.ipa
+
+      - name: Resolve simulator
+        id: sim
+        run: |
+          UDID=$(xcrun simctl list devices available | grep -m1 "iPhone" | sed -E 's/.*\(([A-F0-9-]{36})\).*/\1/')
+          echo "udid=$UDID" >> "$GITHUB_OUTPUT"
+          echo "Using simulator: $UDID"
+
+      - name: Build simulator app
+        working-directory: ios/App
+        run: |
+          set -o pipefail
+          if xcodebuild -project BTInspector.xcodeproj -scheme BTInspector \
+            -configuration Debug -destination "platform=iOS Simulator,id=${{ steps.sim.outputs.udid }}" \
+            -derivedDataPath build 2>&1 | tee build-sim.log | tail -40; then
+            echo "BUILD_OK"
+          else
+            grep -E "error:" build-sim.log | sort -u | head -40 | while IFS= read -r line; do
+              echo "::error::$line"
+            done
+            exit 1
+          fi
+
+      - name: Core regression compile (isolated)
+        timeout-minutes: 5
+        run: |
+          set -o pipefail
+          swiftc -swift-version 5 -DDEBUG \
+            ios/App/App/Core/GATTUUIDs.swift \
+            ios/App/App/Core/BluetoothProtocolCatalog.swift \
+            ios/App/App/Core/AppleAdvertisement.swift \
+            ios/App/App/Core/RouteAnalyzer.swift \
+            ios/App/App/Core/PeripheralModels.swift \
+            ios/App/App/Core/DemoData.swift \
+            ios/App/App/Core/CoreRegression.swift \
+            tests/CoreTests.swift \
+            -o /tmp/bt-core-tests 2>&1 | tee core-compile.log
+
+      - name: Core regression run (isolated)
+        timeout-minutes: 5
+        run: |
+          set -o pipefail
+          /tmp/bt-core-tests 2>&1 | tee core-run.log
+
+      - name: Runner script gate (isolated)
+        timeout-minutes: 5
+        run: bash tests/test_simulator_runner.sh
+
+      - name: Launch on simulator and smoke-tour
+        timeout-minutes: 15
+        run: |
+          set -euo pipefail
+          UDID=${{ steps.sim.outputs.udid }}
+          xcrun simctl boot "$UDID" || true
+          xcrun simctl bootstatus "$UDID" -b
+          xcrun simctl install "$UDID" ios/App/build/Build/Products/Debug-iphonesimulator/BTInspector.app
+          bash tests/run_simulator_tests.sh "$UDID" smoke > smoke-debug.txt 2>&1
+          cp smoke-debug.txt smoke/
+
+      - name: Run in-app self tests (-autoTest, isolated)
+        timeout-minutes: 10
+        run: |
+          bash tests/run_simulator_tests.sh "${{ steps.sim.outputs.udid }}" autotest > auto-test.txt 2>&1
+          cp auto-test.txt autotest/
+
+      - name: Upload IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: bt-inspector-unsigned-ipa
+          path: bt-inspector-unsigned.ipa
+          if-no-files-found: error
+
+      - name: Collect simulator crash reports
+        if: always()
+        run: |
+          mkdir -p crashlogs
+          cp "$HOME"/Library/Logs/DiagnosticReports/*BTInspector* crashlogs/ 2>/dev/null || true
+          cp "$HOME"/Library/Logs/DiagnosticReports/BTInspector-* crashlogs/ 2>/dev/null || true
+
+      - name: Upload smoke screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: smoke-screenshots
+          path: |
+            smoke/
+            autotest/
+            smoke-debug.txt
+            auto-test.txt
+            core-compile.log
+            core-run.log
+            *-console.txt
+            ios/App/build-sim.log
+            crashlogs/
+          if-no-files-found: ignore
+
+      - name: Publish IPA to release
+        run: |
+          gh release create "ipa-${{ github.run_number }}" bt-inspector-unsigned.ipa smoke-debug.txt auto-test.txt smoke/*.png \
+            --title "蓝牙耳机协议观察器 未签名 IPA (build ${{ github.run_number }})" \
+            --notes "Sideloadly / SideStore 直接装这个 ipa。模拟器巡访截图见 smoke-screenshots artifact。" \
+            --latest
+        env:
+          GH_TOKEN: ${{ github.token }}
