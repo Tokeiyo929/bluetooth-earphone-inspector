@@ -32,6 +32,10 @@ Apple 耳机还能读出型号、左右耳和充电盒电量。
 - **协议百科**：A2DP / HFP / AVRCP / HSP / SPP / BLE GATT / LE Audio 都是干什么的，
   以及 SBC / AAC / aptX / LDAC / LC3 的区别。
 
+| 附近设备 | GATT 服务与特征值 |
+| --- | --- |
+| ![附近设备](docs-screenshot-scan.png) | ![GATT 服务](docs-screenshot-services.png) |
+
 ## 能通过蓝牙控制耳机吗
 
 分三层，能力完全不同：
