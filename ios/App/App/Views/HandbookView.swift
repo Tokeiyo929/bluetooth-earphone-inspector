@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct HandbookView: View {
+    @EnvironmentObject var app: AppModel
 
     private let audioCodes = ["A2DP", "HFP", "LE Audio"]
     private let controlCodes = ["AVRCP", "HSP", "SPP", "BLE GATT"]
@@ -24,10 +25,12 @@ struct HandbookView: View {
                 }
                 .padding(16)
                 .padding(.bottom, 24)
+                .id(SmokeScroll.anchorID)
             }
             .pageBackground()
             .navigationTitle("协议百科")
             .navigationBarTitleDisplayMode(.inline)
+            .followSmokeScrollTick(app.scrollToBottomTick)
         }
     }
 

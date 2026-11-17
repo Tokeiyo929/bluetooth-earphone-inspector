@@ -11,6 +11,8 @@ final class AppModel: ObservableObject {
 
     @Published var selectedTab: Int = 0
     @Published var scanPath: [String] = []
+    /// smoke 巡访用：每加一，当前页滚到内容末尾，拍"整页"第二张图。
+    @Published var scrollToBottomTick: Int = 0
 
     private var started = false
 

@@ -40,10 +40,12 @@ struct ScanView: View {
                 }
                 .padding(16)
                 .padding(.bottom, 24)
+                .id(SmokeScroll.anchorID)
             }
             .pageBackground()
             .navigationTitle("附近设备")
             .navigationBarTitleDisplayMode(.inline)
+            .followSmokeScrollTick(app.scrollToBottomTick)
             .navigationDestination(for: String.self) { id in
                 if let peripheral = ble.peripheral(id: id) {
                     PeripheralDetailView(peripheral: peripheral)

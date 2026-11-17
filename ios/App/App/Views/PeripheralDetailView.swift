@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct PeripheralDetailView: View {
+    @EnvironmentObject var app: AppModel
     @EnvironmentObject var ble: BLEModel
     let peripheral: PeripheralSnapshot
 
@@ -36,10 +37,12 @@ struct PeripheralDetailView: View {
             }
             .padding(16)
             .padding(.bottom, 24)
+            .id(SmokeScroll.anchorID)
         }
         .pageBackground()
         .navigationTitle(current.name)
         .navigationBarTitleDisplayMode(.inline)
+        .followSmokeScrollTick(app.scrollToBottomTick)
     }
 
     // MARK: - 头部
@@ -90,7 +93,7 @@ struct PeripheralDetailView: View {
 
     private var shortIdentifier: String {
         if current.id.hasPrefix("DEMO-") { return "模拟设备 · \(current.id)" }
-        return String(current.id.prefix(8)) + "…"
+        return current.id.count <= 12 ? current.id : String(current.id.prefix(8)) + "…"
     }
 
     // MARK: - Apple 广播

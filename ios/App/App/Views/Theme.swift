@@ -18,7 +18,7 @@ enum Theme {
 
     /// 小字号的“次要文字”比系统 secondaryLabel 深一点，保证可读性。
     static let secondaryText = Color.primary.opacity(0.66)
-    static let tertiaryText = Color.primary.opacity(0.50)
+    static let tertiaryText = Color.primary.opacity(0.55)
 
     static func dynamic(light: (Double, Double, Double), dark: (Double, Double, Double)) -> Color {
         Color(uiColor: UIColor { traits in
@@ -114,7 +114,7 @@ struct SignalBars: View {
         HStack(alignment: .bottom, spacing: 2.5) {
             ForEach(0..<4) { index in
                 Capsule()
-                    .fill(index < bars ? Theme.accent : Color.secondary.opacity(0.22))
+                    .fill(index < bars ? Theme.accent : Color.secondary.opacity(0.28))
                     .frame(width: 3.5, height: CGFloat(5 + index * 3))
             }
         }
@@ -196,5 +196,35 @@ struct SectionHeader: View {
             .foregroundStyle(Theme.secondaryText)
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal, 4)
+    }
+}
+
+/// smoke 巡访专用：`AppModel.scrollToBottomTick` 每加一，页面滚到内容末尾。
+/// 页面内容末尾需要带 `.id(SmokeScroll.anchorID)`，否则 proxy 找不到锚点。
+enum SmokeScroll {
+    static let anchorID = "smoke-bottom-anchor"
+}
+
+extension View {
+    func followSmokeScrollTick(_ tick: Int) -> some View {
+        modifier(FollowSmokeScroll(tick: tick))
+    }
+}
+
+private struct FollowSmokeScroll: ViewModifier {
+    let tick: Int
+
+    func body(content: Content) -> some View {
+        ScrollViewReader { proxy in
+            content
+                .task(id: tick) {
+                    guard tick > 0 else { return }
+                    // 等页签切换 / 导航推入后的布局稳定再滚
+                    try? await Task.sleep(nanoseconds: 200_000_000)
+                    withAnimation(.easeInOut(duration: 0.25)) {
+                        proxy.scrollTo(SmokeScroll.anchorID, anchor: .bottom)
+                    }
+                }
+        }
     }
 }

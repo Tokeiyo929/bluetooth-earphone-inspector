@@ -6,10 +6,17 @@ udid=$1
 mode=$2
 bundle_id=com.tokeiyo929.btinspector
 case "$mode" in
-  smoke) argument=-autoSmoke; names="01-route 02-scan 03-detail-airpods 04-detail-sony 05-handbook" ;;
-  autotest) argument=-autoTest; names= ;;
+  smoke)
+    argument=-autoSmoke
+    names="01-route 02-scan 03-detail-airpods 04-detail-sony 05-handbook"
+    # 每页滚到底再拍一张，覆盖首屏之外的内容（services / evidence / footer 等）
+    bottoms=
+    for name in $names; do bottoms="$bottoms bottom-$name"; done
+    ;;
+  autotest) argument=-autoTest; names=; bottoms= ;;
   *) echo "Unknown test mode: $mode" >&2; exit 1 ;;
 esac
+shots="$names $bottoms"
 container=$(xcrun simctl get_app_container "$udid" "$bundle_id" data)
 directory="$container/tmp/$mode"
 mkdir -p "$directory" "$mode"
@@ -26,7 +33,7 @@ xcrun simctl launch --console "$udid" "$bundle_id" "$argument" > "$mode-console.
 pid=$!
 poll_seconds=${BT_POLL_SECONDS:-300}
 for ((second=0; second<poll_seconds; second++)); do
-  for name in $names; do
+  for name in $shots; do
     if [ -f "$directory/now-$name" ] && [ ! -f "$directory/ack-$name" ]; then
       xcrun simctl io "$udid" screenshot "$mode/$name.png"
       : > "$directory/ack-$name"
@@ -44,7 +51,7 @@ if [ "$(cat "$directory/done.txt")" != PASS ]; then
 fi
 grep -qx 'RESULT: ALL PASS' "$directory/result.txt"
 if grep -q '^FAIL' "$directory/result.txt"; then cat "$directory/result.txt"; exit 1; fi
-for name in $names; do test -s "$mode/$name.png"; done
+for name in $shots; do test -s "$mode/$name.png"; done
 # 即使已写 PASS，随后异常退出或挂起仍必须失败。
 for ((second=0; second<10; second++)); do
   if ! kill -0 "$pid" 2>/dev/null; then break; fi

@@ -36,10 +36,13 @@ case "$cmd" in
     mkdir -p "$dir"
     # 纯 bash 模拟 app 行为，避免 Windows 上 python3 只是应用商店别名
     case "$mode" in
-      smoke) names="01-route 02-scan 03-detail-airpods 04-detail-sony 05-handbook" ;;
-      autotest) names="" ;;
+      smoke)
+        names="01-route 02-scan 03-detail-airpods 04-detail-sony 05-handbook"
+        bottoms=
+        for name in $names; do bottoms="$bottoms bottom-$name"; done ;;
+      autotest) names=""; bottoms="" ;;
     esac
-    for name in $names; do
+    for name in $names $bottoms; do
       : > "$dir/now-$name"
       deadline=$(( $(date +%s) + 30 ))
       while [ ! -f "$dir/ack-$name" ]; do
@@ -86,8 +89,9 @@ run_case() {
 run_case "全部截图成功" 0 env MOCK_FAIL=0 MOCK_EARLY_EXIT=0
 for name in 01-route 02-scan 03-detail-airpods 04-detail-sony 05-handbook; do
   test -s "$workspace/smoke/$name.png" || { echo "FAIL 缺截图 $name" >&2; exit 1; }
+  test -s "$workspace/smoke/bottom-$name.png" || { echo "FAIL 缺底部截图 bottom-$name" >&2; exit 1; }
 done
-echo "PASS runner gate: 5 张截图齐全"
+echo "PASS runner gate: 10 张截图齐全"
 
 run_case "app 报 FAIL" 1 env MOCK_FAIL=1 MOCK_EARLY_EXIT=0
 run_case "app 提前退出" 1 env MOCK_FAIL=0 MOCK_EARLY_EXIT=1

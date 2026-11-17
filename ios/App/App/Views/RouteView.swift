@@ -22,11 +22,13 @@ struct RouteView: View {
                 }
                 .padding(16)
                 .padding(.bottom, 24)
+                .id(SmokeScroll.anchorID)
             }
             .pageBackground()
             .navigationTitle("当前链路")
             .navigationBarTitleDisplayMode(.inline)
             .refreshable { app.refreshAll() }
+            .followSmokeScrollTick(app.scrollToBottomTick)
         }
     }
 

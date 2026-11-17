@@ -19,6 +19,8 @@ final class SmokeTour {
         for name in Self.pages {
             try? FileManager.default.removeItem(at: smokeDir.appendingPathComponent("now-\(name)"))
             try? FileManager.default.removeItem(at: smokeDir.appendingPathComponent("ack-\(name)"))
+            try? FileManager.default.removeItem(at: smokeDir.appendingPathComponent("now-bottom-\(name)"))
+            try? FileManager.default.removeItem(at: smokeDir.appendingPathComponent("ack-bottom-\(name)"))
         }
         try? FileManager.default.removeItem(at: smokeDir.appendingPathComponent("done.txt"))
         try? FileManager.default.removeItem(at: smokeDir.appendingPathComponent("result.txt"))
@@ -66,6 +68,29 @@ final class SmokeTour {
     private func showMarker(_ index: Int) {
         let name = Self.pages[index]
         writeMarker("now-\(name)")
+        waitForAck(name) { [weak self] in
+            self?.captureBottom(index)
+        }
+    }
+
+    /// 第二张图：把页面滚到底，拍下首屏之外的部分。
+    private func captureBottom(_ index: Int) {
+        guard let app else {
+            fail("AppModel 丢失")
+            return
+        }
+        let name = "bottom-\(Self.pages[index])"
+        app.scrollToBottomTick += 1
+        delay(1.0) { [weak self] in
+            guard let self else { return }
+            self.writeMarker(name)
+            self.waitForAck(name) { [weak self] in
+                self?.runPage(index + 1)
+            }
+        }
+    }
+
+    private func waitForAck(_ name: String, then: @escaping () -> Void) {
         waitUntil(
             timeout: 120,
             check: { [weak self] in
@@ -74,10 +99,9 @@ final class SmokeTour {
                     atPath: self.smokeDir.appendingPathComponent("ack-\(name)").path
                 )
             },
-            onTimeout: { "runner 未 ack \(name)" }
-        ) { [weak self] in
-            self?.runPage(index + 1)
-        }
+            onTimeout: { "runner 未 ack \(name)" },
+            then: then
+        )
     }
 
     // MARK: - 轮询小工具
