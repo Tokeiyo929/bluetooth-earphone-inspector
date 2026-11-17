@@ -33,10 +33,13 @@ xcrun simctl launch --console "$udid" "$bundle_id" "$argument" > "$mode-console.
 pid=$!
 poll_seconds=${BT_POLL_SECONDS:-300}
 for ((second=0; second<poll_seconds; second++)); do
-  for name in $shots; do
+  for name in $names; do
     if [ -f "$directory/now-$name" ] && [ ! -f "$directory/ack-$name" ]; then
       xcrun simctl io "$udid" screenshot "$mode/$name.png"
+      # 先 ack 让 App 开始滚动，再等动画结束拍"整页"第二张
       : > "$directory/ack-$name"
+      sleep 2
+      xcrun simctl io "$udid" screenshot "$mode/bottom-$name.png"
     fi
   done
   if [ -f "$directory/done.txt" ]; then break; fi

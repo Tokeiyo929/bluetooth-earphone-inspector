@@ -19,8 +19,6 @@ final class SmokeTour {
         for name in Self.pages {
             try? FileManager.default.removeItem(at: smokeDir.appendingPathComponent("now-\(name)"))
             try? FileManager.default.removeItem(at: smokeDir.appendingPathComponent("ack-\(name)"))
-            try? FileManager.default.removeItem(at: smokeDir.appendingPathComponent("now-bottom-\(name)"))
-            try? FileManager.default.removeItem(at: smokeDir.appendingPathComponent("ack-bottom-\(name)"))
         }
         try? FileManager.default.removeItem(at: smokeDir.appendingPathComponent("done.txt"))
         try? FileManager.default.removeItem(at: smokeDir.appendingPathComponent("result.txt"))
@@ -69,24 +67,20 @@ final class SmokeTour {
         let name = Self.pages[index]
         writeMarker("now-\(name)")
         waitForAck(name) { [weak self] in
-            self?.captureBottom(index)
+            self?.scrollToBottom(index)
         }
     }
 
-    /// 第二张图：把页面滚到底，拍下首屏之外的部分。
-    private func captureBottom(_ index: Int) {
+    /// 滚到底：runner 收到 ack 后会等 2 秒再拍"整页"第二张图，
+    /// 这里留 3 秒再切下一页，保证截图时页面还是当前这页。
+    private func scrollToBottom(_ index: Int) {
         guard let app else {
             fail("AppModel 丢失")
             return
         }
-        let name = "bottom-\(Self.pages[index])"
         app.scrollToBottomTick += 1
-        delay(1.0) { [weak self] in
-            guard let self else { return }
-            self.writeMarker(name)
-            self.waitForAck(name) { [weak self] in
-                self?.runPage(index + 1)
-            }
+        delay(3.0) { [weak self] in
+            self?.runPage(index + 1)
         }
     }
 

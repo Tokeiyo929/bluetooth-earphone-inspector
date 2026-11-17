@@ -37,12 +37,10 @@ case "$cmd" in
     # 纯 bash 模拟 app 行为，避免 Windows 上 python3 只是应用商店别名
     case "$mode" in
       smoke)
-        names="01-route 02-scan 03-detail-airpods 04-detail-sony 05-handbook"
-        bottoms=
-        for name in $names; do bottoms="$bottoms bottom-$name"; done ;;
-      autotest) names=""; bottoms="" ;;
+        names="01-route 02-scan 03-detail-airpods 04-detail-sony 05-handbook" ;;
+      autotest) names="" ;;
     esac
-    for name in $names $bottoms; do
+    for name in $names; do
       : > "$dir/now-$name"
       deadline=$(( $(date +%s) + 30 ))
       while [ ! -f "$dir/ack-$name" ]; do
