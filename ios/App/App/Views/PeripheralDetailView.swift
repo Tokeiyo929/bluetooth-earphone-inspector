@@ -43,6 +43,9 @@ struct PeripheralDetailView: View {
         .navigationTitle(current.name)
         .navigationBarTitleDisplayMode(.inline)
         .followSmokeScrollTick(app.scrollToBottomTick)
+        // NavigationStack 会复用同一个详情 View：换设备时若不复位身份，
+        // 上一台设备的滚动位置会被带过来（下方内容直接顶到屏幕顶部）。
+        .id(current.id)
     }
 
     // MARK: - 头部
