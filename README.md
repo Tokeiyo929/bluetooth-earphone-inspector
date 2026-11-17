@@ -6,6 +6,9 @@
 「附近设备」再往下挖 BLE 层的 GATT 服务：设备信息、电量、有没有 LE Audio（LC3）能力，
 Apple 耳机还能读出型号、左右耳和充电盒电量。
 
+**下载**：[最新未签名 IPA](https://github.com/Tokeiyo929/bluetooth-earphone-inspector/releases/latest)
+（`bt-inspector-unsigned.ipa`，用 Sideloadly / SideStore 自签安装）。
+
 ![首页](docs-screenshot-route.png)
 
 ## 它回答的三个问题
