@@ -71,15 +71,16 @@ final class SmokeTour {
         }
     }
 
-    /// 滚到底：runner 收到 ack 后会等 2 秒再拍"整页"第二张图，
-    /// 这里留 3 秒再切下一页，保证截图时页面还是当前这页。
+    /// 滚到底：runner 收到 ack 后会等 2 秒再拍"整页"第二张图。
+    /// 这里留 5 秒再切下一页（末页即退出 App），避免 simctl 截图慢于切页，
+    /// 拍到的是下一页或桌面壁纸。
     private func scrollToBottom(_ index: Int) {
         guard let app else {
             fail("AppModel 丢失")
             return
         }
         app.scrollToBottomTick += 1
-        delay(3.0) { [weak self] in
+        delay(5.0) { [weak self] in
             self?.runPage(index + 1)
         }
     }
