@@ -22,7 +22,7 @@ final class BLEModel: NSObject, ObservableObject {
         if isDemo {
             peripherals = DemoData.peripherals()
             isScanning = true
-            stateText = "演示数据 · 已发现 \(peripherals.count) 台 BLE 设备"
+            stateText = demoStateText
             return
         }
         central = CBCentralManager(
@@ -43,12 +43,17 @@ final class BLEModel: NSObject, ObservableObject {
         peripherals.first { $0.id == id }
     }
 
+    private var demoStateText: String {
+        let system = peripherals.filter { $0.isSystemConnected }.count
+        return "演示数据 · 共 \(peripherals.count) 台，其中 \(system) 台系统已连接"
+    }
+
     func toggleScan() {
         if isDemo {
             isScanning.toggle()
             if isScanning {
                 peripherals = DemoData.peripherals()
-                stateText = "演示数据 · 已发现 \(peripherals.count) 台 BLE 设备"
+                stateText = demoStateText
             } else {
                 stateText = "演示数据 · 扫描已停止"
             }

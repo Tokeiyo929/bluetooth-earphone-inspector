@@ -27,6 +27,7 @@ struct PeripheralDetailView: View {
                 connectPanel
             }
             .padding(16)
+            .padding(.bottom, 24)
         }
         .pageBackground()
         .navigationTitle(current.name)
@@ -49,28 +50,30 @@ struct PeripheralDetailView: View {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(current.name)
                         .font(.title3.weight(.bold))
-                        .fixedSize(horizontal: false, vertical: true)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.72)
                     Text(shortIdentifier)
                         .font(.caption2.monospaced())
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Theme.secondaryText)
                 }
                 Spacer(minLength: 4)
                 VStack(alignment: .trailing, spacing: 5) {
                     SignalBars(bars: PeripheralAnalyzer.signalBars(rssi: current.rssi))
                     Text(PeripheralAnalyzer.signalLabel(rssi: current.rssi))
                         .font(.caption2)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Theme.secondaryText)
                 }
             }
 
             HStack(spacing: 6) {
-                Badge(text: current.linkState.label,
-                      color: current.linkState == .connected ? Theme.green : Theme.accent)
                 if current.isSystemConnected {
-                    Badge(text: "系统已连接", color: Theme.green)
+                    Badge(text: "系统 BLE 链路", color: Theme.green)
+                } else {
+                    Badge(text: current.linkState.label,
+                          color: current.linkState == .connected ? Theme.green : Theme.accent)
                 }
                 if current.isDemo {
-                    Badge(text: "模拟数据", color: .secondary)
+                    Badge(text: "模拟数据", color: Theme.grey)
                 }
             }
         }
@@ -113,7 +116,7 @@ struct PeripheralDetailView: View {
             Text("Apple 用厂商 ID 0x004C 的私有邻近报文广播这些状态，"
                 + "不是标准蓝牙协议。新固件可能改为加密广播，电量读数偶尔会失真。")
                 .font(.caption2)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Theme.secondaryText)
                 .lineSpacing(2)
         }
         .card()
@@ -163,7 +166,7 @@ struct PeripheralDetailView: View {
                         .padding(.top, 1)
                     Text(insight.notes[index])
                         .font(.footnote)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Theme.secondaryText)
                         .fixedSize(horizontal: false, vertical: true)
                 }
             }
@@ -199,7 +202,7 @@ struct PeripheralDetailView: View {
                 Spacer()
                 Text("\(current.services.count) 项")
                     .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Theme.secondaryText)
             }
 
             if current.services.isEmpty {
@@ -207,7 +210,7 @@ struct PeripheralDetailView: View {
                      ? "已连接，但还没有读到服务列表。系统或其他 App 可能占用了 GATT 会话。"
                      : "连接后即可读取服务列表。")
                     .font(.footnote)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Theme.secondaryText)
             } else {
                 ForEach(current.services) { service in
                     VStack(alignment: .leading, spacing: 8) {
@@ -221,13 +224,13 @@ struct PeripheralDetailView: View {
                             Spacer(minLength: 4)
                             Text(service.uuid)
                                 .font(.system(.caption2, design: .monospaced))
-                                .foregroundStyle(.secondary)
+                                .foregroundStyle(Theme.secondaryText)
                                 .lineLimit(1)
                         }
                         if let note = service.note {
                             Text(note)
                                 .font(.caption2)
-                                .foregroundStyle(.secondary)
+                                .foregroundStyle(Theme.secondaryText)
                         }
                         ForEach(service.characteristics) { characteristic in
                             characteristicRow(characteristic)
@@ -259,18 +262,18 @@ struct PeripheralDetailView: View {
             HStack(spacing: 6) {
                 Text(characteristic.uuid)
                     .font(.system(.caption2, design: .monospaced))
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Theme.secondaryText)
                     .lineLimit(1)
                 Spacer(minLength: 4)
                 Text(characteristic.properties.joined(separator: " · "))
                     .font(.caption2)
-                    .foregroundStyle(.tertiary)
+                    .foregroundStyle(Theme.tertiaryText)
                     .lineLimit(1)
             }
             if characteristic.valueText == nil, let hex = characteristic.valueHex {
                 Text(hex)
                     .font(.system(.caption2, design: .monospaced))
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Theme.secondaryText)
             }
         }
         .padding(.vertical, 5)
@@ -283,13 +286,13 @@ struct PeripheralDetailView: View {
             Text("广播原始字节").font(.headline)
             Text(hex)
                 .font(.system(.caption, design: .monospaced))
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Theme.secondaryText)
                 .textSelection(.enabled)
             Text(current.appleInfo != nil
                  ? "厂商 ID 0x004C（Apple 私有广播）"
                  : "厂商 ID 非 0x004C（标准广播 / 其他厂商）")
                 .font(.caption2)
-                .foregroundStyle(.tertiary)
+                .foregroundStyle(Theme.tertiaryText)
         }
         .card()
     }
@@ -301,13 +304,13 @@ struct PeripheralDetailView: View {
             if current.isDemo {
                 Text("模拟设备：真实连接与读取请在 iPhone 上运行。")
                     .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Theme.secondaryText)
             } else if current.linkState == .connecting {
                 HStack(spacing: 8) {
                     ProgressView()
                     Text("正在连接并读取服务…")
                         .font(.footnote)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Theme.secondaryText)
                 }
             } else if current.linkState != .connected {
                 Button {

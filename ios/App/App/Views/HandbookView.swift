@@ -23,6 +23,7 @@ struct HandbookView: View {
                     howToCard
                 }
                 .padding(16)
+                .padding(.bottom, 24)
             }
             .pageBackground()
             .navigationTitle("协议百科")
@@ -42,7 +43,7 @@ struct HandbookView: View {
             Text("同一副耳机同时跑好几套协议：一条传音乐，一条管麦克风，还有控制、电量、固件升级。"
                 + "「当前链路」看到的是系统正在用的音频协议；「附近设备」看到的是 BLE 上的控制与能力信息。")
                 .font(.footnote)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Theme.secondaryText)
                 .lineSpacing(2)
         }
         .card()
@@ -60,7 +61,9 @@ struct HandbookView: View {
                         .font(.subheadline.weight(.semibold))
                     Text(profile.englishName)
                         .font(.caption2)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Theme.secondaryText)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.75)
                 }
                 Spacer(minLength: 4)
                 Badge(text: profile.layer.components(separatedBy: " · ").first ?? profile.layer,
@@ -70,7 +73,7 @@ struct HandbookView: View {
             InfoRow(title: "编码", value: profile.codec, titleWidth: 40)
             Text(profile.detail)
                 .font(.caption)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Theme.secondaryText)
                 .lineSpacing(2)
         }
         .card()
@@ -81,7 +84,7 @@ struct HandbookView: View {
             Text("常见音频编解码").font(.headline)
             Text("协议只是「管道」，真正决定音质的是管道里用的压缩算法。")
                 .font(.caption)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Theme.secondaryText)
 
             codecRow("SBC", "A2DP 的强制底线，所有耳机都支持；码率约 200–345 kbps，听感一般。")
             codecRow("AAC", "Apple 主推。iPhone 与多数耳机协商 AAC（约 250 kbps），音质明显好于 SBC。")
@@ -98,7 +101,7 @@ struct HandbookView: View {
                 .font(.caption.weight(.semibold))
             Text(detail)
                 .font(.caption2)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Theme.secondaryText)
                 .lineSpacing(1.5)
         }
         .padding(.vertical, 2)
@@ -132,7 +135,7 @@ struct HandbookView: View {
                 .clipShape(Circle())
             Text(text)
                 .font(.caption)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Theme.secondaryText)
                 .lineSpacing(2)
         }
     }
@@ -158,7 +161,7 @@ struct HandbookView: View {
                 .clipShape(Circle())
             Text(text)
                 .font(.caption)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Theme.secondaryText)
                 .lineSpacing(2)
         }
     }

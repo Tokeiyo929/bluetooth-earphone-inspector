@@ -20,6 +20,7 @@ struct RouteView: View {
                     footer
                 }
                 .padding(16)
+                .padding(.bottom, 24)
             }
             .pageBackground()
             .navigationTitle("当前链路")
@@ -101,9 +102,9 @@ struct RouteView: View {
                 Text("路由明细").font(.headline)
                 Spacer()
                 if let updated = routeModel.lastUpdated {
-                    Text(updated, style: .time)
+                    Text("更新 \(Self.timeFormatter.string(from: updated))")
                         .font(.caption2.monospacedDigit())
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Theme.secondaryText)
                 }
             }
             ForEach(detailRows.indices, id: \.self) { index in
@@ -112,7 +113,7 @@ struct RouteView: View {
             Divider()
             Text("来源：AVAudioSession.currentRoute / availableInputs")
                 .font(.caption2)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Theme.secondaryText)
         }
         .card()
     }
@@ -128,14 +129,14 @@ struct RouteView: View {
                         .padding(.top, 1)
                     Text(verdict.evidence[index])
                         .font(.footnote)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Theme.secondaryText)
                         .fixedSize(horizontal: false, vertical: true)
                 }
             }
             Divider()
             Text(verdict.codecNote)
                 .font(.caption)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Theme.secondaryText)
                 .lineSpacing(2)
         }
         .card()
@@ -167,22 +168,29 @@ struct RouteView: View {
                     Text("打开系统设置")
                 }
                 .font(.footnote.weight(.medium))
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Theme.secondaryText)
             }
             .buttonStyle(.plain)
 
             if let note = routeModel.sessionNote {
                 Text(note)
                     .font(.caption2)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Theme.secondaryText)
                     .multilineTextAlignment(.center)
             }
 
             Text("构建 \(buildNumber) · 蓝牙耳机协议观察器")
                 .font(.caption2)
-                .foregroundStyle(.tertiary)
+                .foregroundStyle(Theme.tertiaryText)
         }
     }
+
+    private static let timeFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "zh_Hans_CN")
+        formatter.dateFormat = "HH:mm"
+        return formatter
+    }()
 
     private var buildNumber: String {
         Bundle.main.object(forInfoDictionaryKey: "BTBuild") as? String ?? "dev"

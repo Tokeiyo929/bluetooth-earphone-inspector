@@ -5,11 +5,27 @@ import UIKit
 enum Theme {
     static let page = Color(uiColor: .systemGroupedBackground)
     static let card = Color(uiColor: .secondarySystemGroupedBackground)
-    static let accent = Color(red: 0.10, green: 0.74, blue: 0.90)
-    static let indigo = Color(red: 0.35, green: 0.36, blue: 0.92)
-    static let green = Color(red: 0.16, green: 0.76, blue: 0.46)
-    static let orange = Color(red: 0.98, green: 0.60, blue: 0.18)
-    static let red = Color(red: 0.94, green: 0.30, blue: 0.34)
+    // 动态色：浅色模式用更深的色调保证 WCAG AA 对比度（截图目检时
+    // 亮青色/亮绿色在浅底上只有 2.1:1），深色模式再提亮。
+    static let accent = dynamic(light: (0.03, 0.48, 0.62), dark: (0.36, 0.81, 0.89))
+    static let indigo = dynamic(light: (0.22, 0.24, 0.66), dark: (0.52, 0.55, 0.96))
+    static let green = dynamic(light: (0.04, 0.45, 0.27), dark: (0.30, 0.84, 0.56))
+    static let orange = dynamic(light: (0.63, 0.31, 0.02), dark: (0.98, 0.68, 0.30))
+    static let red = dynamic(light: (0.72, 0.12, 0.16), dark: (0.96, 0.42, 0.45))
+    /// 中性灰标签（"模拟数据"/"不可连接"）。系统 secondaryLabel 在浅色卡片上
+    /// 只有 2.7:1，小字号读不清，这里压深到 4.6:1 以上。
+    static let grey = dynamic(light: (0.36, 0.37, 0.40), dark: (0.74, 0.76, 0.80))
+
+    /// 小字号的“次要文字”比系统 secondaryLabel 深一点，保证可读性。
+    static let secondaryText = Color.primary.opacity(0.66)
+    static let tertiaryText = Color.primary.opacity(0.50)
+
+    static func dynamic(light: (Double, Double, Double), dark: (Double, Double, Double)) -> Color {
+        Color(uiColor: UIColor { traits in
+            let value = traits.userInterfaceStyle == .dark ? dark : light
+            return UIColor(red: value.0, green: value.1, blue: value.2, alpha: 1)
+        })
+    }
 
     static func tone(_ name: String) -> Color {
         switch name {
@@ -81,7 +97,7 @@ struct InfoRow: View {
         HStack(alignment: .top, spacing: 10) {
             Text(title)
                 .font(.footnote)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Theme.secondaryText)
                 .frame(width: titleWidth, alignment: .leading)
             Text(value)
                 .font(.footnote)
@@ -140,7 +156,7 @@ struct BudBatteryRow: View {
         HStack(spacing: 10) {
             Text(title)
                 .font(.caption)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Theme.secondaryText)
                 .frame(width: 52, alignment: .leading)
             BatteryBar(percent: percent)
             Text(AppleAdvertisement.percentText(percent))
@@ -164,7 +180,7 @@ struct DemoBanner: View {
                     .font(.footnote.weight(.semibold))
                 Text("模拟器没有蓝牙硬件；装到 iPhone 后显示真实扫描结果。")
                     .font(.caption2)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Theme.secondaryText)
             }
             Spacer(minLength: 0)
         }
@@ -177,7 +193,7 @@ struct SectionHeader: View {
     var body: some View {
         Text(text)
             .font(.caption.weight(.semibold))
-            .foregroundStyle(.secondary)
+            .foregroundStyle(Theme.secondaryText)
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal, 4)
     }
