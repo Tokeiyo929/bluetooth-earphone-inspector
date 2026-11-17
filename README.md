@@ -110,8 +110,8 @@ open BTInspector.xcodeproj
   信号阈值、演示数据），秒级，不依赖模拟器。
 - **L2 进程内自测**：`-autoTest` 启动参数，跑同一套核心回归 + 真实 `AVAudioSession` 输出端口检查，
   结果写 `tmp/autotest/`。
-- **L3 全页面截图巡访**：`-autoSmoke` 走完 3 个页签 + 2 个设备详情页，
-  与 runner 用 `now-<name>` / `ack-<name>` 标记文件握手截图。
+- **L3 全页面截图巡访**：`-autoSmoke` 走完 3 个页签 + 2 个设备详情页，每页拍两张
+  （首屏 + 滚到底），与 runner 用 `now-<name>` / `ack-<name>` 标记文件握手截图。
 - **runner 自检**：`tests/test_simulator_runner.sh` 用假 `xcrun` 覆盖「全部截图成功 / app 报 FAIL /
   app 提前退出」三条路径。
 
