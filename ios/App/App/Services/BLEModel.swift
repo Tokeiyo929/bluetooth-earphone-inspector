@@ -100,6 +100,40 @@ final class BLEModel: NSObject, ObservableObject {
         central.connect(peripheral, options: nil)
     }
 
+    // MARK: - 标准 MCS 控制（Media Control Service 0x1848 / 0x1849）
+
+    /// 最近的播放控制结果，详情页用来给反馈。
+    @Published private(set) var controlMessage: String?
+
+    /// 通过标准 MCS 的 Media Control Point（0x2BA4）发送播放指令。
+    /// 厂商私有协议（降噪/EQ）不在这里，iOS 没有统一 API。
+    func writeMediaControl(_ opcode: UInt8, peripheralID: String) {
+        let label: String
+        switch opcode {
+        case 0x01: label = "播放"
+        case 0x02: label = "暂停"
+        case 0x04: label = "上一首"
+        case 0x05: label = "下一首"
+        default: label = "指令"
+        }
+        let hex = String(format: "0x%02X", opcode)
+        if isDemo {
+            controlMessage = "模拟设备：已发送「\(label)」\(hex)"
+            return
+        }
+        guard let peripheral = cbPeripherals[peripheralID], peripheral.state == .connected else {
+            controlMessage = "设备未连接，无法发送控制指令"
+            return
+        }
+        let characteristics = peripheral.services?.flatMap { $0.characteristics ?? [] } ?? []
+        guard let point = characteristics.first(where: { $0.uuid.uuidString.uppercased() == "2BA4" }) else {
+            controlMessage = "这台设备没有暴露标准 MCS 控制点（0x2BA4）"
+            return
+        }
+        peripheral.writeValue(Data([opcode]), for: point, type: .withResponse)
+        controlMessage = "已发送「\(label)」\(hex)"
+    }
+
     /// 系统已通过 BLE 连接的设备（例如耳机在系统里保持的 BLE 链路）。
     func refreshSystemPeripherals() {
         guard !isDemo, let central, central.state == .poweredOn else { return }

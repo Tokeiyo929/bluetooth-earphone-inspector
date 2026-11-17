@@ -196,7 +196,7 @@ enum DemoData {
             rssi: -89,
             isConnectable: false,
             advertisedServiceUUIDs: ["180F"],
-            manufacturerDataHex: "59 00 01 02 03",
+            manufacturerDataHex: "F0 05 01 02 03",
             appleInfo: nil,
             services: [
                 service("180F", chars: [

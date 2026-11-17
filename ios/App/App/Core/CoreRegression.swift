@@ -42,6 +42,28 @@ enum CoreRegression {
             )
         }
 
+        func testPeripheral(deviceInfo: [String: String] = [:],
+                            advertised: [String] = [],
+                            manufacturerHex: String? = nil,
+                            name: String = "测试耳机") -> PeripheralSnapshot {
+            PeripheralSnapshot(
+                id: "TEST",
+                name: name,
+                rssi: -50,
+                isConnectable: true,
+                advertisedServiceUUIDs: advertised,
+                manufacturerDataHex: manufacturerHex,
+                appleInfo: nil,
+                services: [],
+                deviceInfo: deviceInfo,
+                batteryPercent: nil,
+                linkState: .discovered,
+                isSystemConnected: false,
+                lastError: nil,
+                isDemo: true
+            )
+        }
+
         // MARK: UUID 规整
 
         check("UUID: 4 位短码补全成标准 128-bit") {
@@ -187,6 +209,74 @@ enum CoreRegression {
             try require(keys.contains("输入端口"), "缺输入端口")
             try require(keys.contains("可用输入"), "缺可用输入")
             try require(rows.map { $0.1 }.joined().contains("BluetoothA2DPOutput"), "缺端口类型原文")
+        }
+
+        // MARK: 芯片与版本线索
+
+        check("芯片: 广播厂商 ID 0x05F0 → Beken") {
+            guard let liberty = DemoData.peripherals().first(where: { $0.id == "DEMO-L4NC" }) else {
+                try require(false, "缺 Liberty 演示设备")
+                return
+            }
+            let insight = ChipAnalyzer.insight(for: liberty)
+            try require(insight.moduleVendor?.contains("Beken") == true,
+                        "得到 \(String(describing: insight.moduleVendor))")
+            try require(insight.clues.contains { $0.value.contains("Beken") }, "线索里应有厂商名")
+        }
+        check("芯片: 料号 BES2500 → 恒玄 BES2500 系列") {
+            let peripheral = testPeripheral(deviceInfo: [DeviceInfoField.firmware.rawValue: "BES2500YP"])
+            let insight = ChipAnalyzer.insight(for: peripheral)
+            try require(insight.chipFamily?.contains("BES2500") == true,
+                        "得到 \(String(describing: insight.chipFamily))")
+            try require(insight.confidence == "高", "置信 \(insight.confidence)")
+        }
+        check("芯片: 料号 AB1562 → 络达") {
+            let peripheral = testPeripheral(deviceInfo: [DeviceInfoField.model.rawValue: "AB1562M"])
+            let insight = ChipAnalyzer.insight(for: peripheral)
+            try require(insight.chipFamily?.contains("AB1562") == true,
+                        "得到 \(String(describing: insight.chipFamily))")
+        }
+        check("芯片: PnP 厂商 0x0094 → 络达") {
+            let pnp = "来源 0x01 · 厂商 0x0094 · 产品 0x0001 · 版本 1"
+            let peripheral = testPeripheral(deviceInfo: [DeviceInfoField.pnp.rawValue: pnp])
+            let insight = ChipAnalyzer.insight(for: peripheral)
+            try require(insight.moduleVendor?.contains("Airoha") == true,
+                        "得到 \(String(describing: insight.moduleVendor))")
+        }
+        check("芯片: 品牌名不冒充芯片") {
+            guard let sony = DemoData.peripherals().first(where: { $0.id == "DEMO-XM5" }) else {
+                try require(false, "缺 Sony 演示设备")
+                return
+            }
+            let insight = ChipAnalyzer.insight(for: sony)
+            try require(insight.brand?.contains("Sony") == true,
+                        "得到 \(String(describing: insight.brand))")
+            try require(insight.moduleVendor == nil, "Sony 只是品牌名，不应推断出方案商")
+        }
+        check("版本: LE Audio 服务 → 至少 5.2") {
+            guard let sony = DemoData.peripherals().first(where: { $0.id == "DEMO-XM5" }) else {
+                try require(false, "缺 Sony 演示设备")
+                return
+            }
+            let insight = ChipAnalyzer.insight(for: sony)
+            try require(insight.versionVerdict.contains("5.2"), "得到 \(insight.versionVerdict)")
+        }
+        check("版本: 没有 LE Audio → 无法验证 5.2") {
+            guard let baseus = DemoData.peripherals().first(where: { $0.id == "DEMO-BOWIE30" }) else {
+                try require(false, "缺倍思演示设备")
+                return
+            }
+            let insight = ChipAnalyzer.insight(for: baseus)
+            try require(insight.versionVerdict.contains("无法验证"), "得到 \(insight.versionVerdict)")
+            try require(insight.versionEvidence.joined().contains("不等于"), "应说明没证据不等于低于 5.2")
+        }
+        check("线索解析: PnP 文本 / 广播字节") {
+            try require(ChipAnalyzer.parsePnP(text: "来源 0x02 · 厂商 0x0A12", key: "厂商 0x") == 0x0A12,
+                        "PnP 厂商解析")
+            try require(ChipAnalyzer.parsePnP(text: "来源 0x02 · 厂商 0x0A12", key: "来源 0x") == 0x02,
+                        "PnP 来源解析")
+            try require(ChipAnalyzer.firstBytes("F0 05 01", count: 2) == [0xF0, 0x05], "广播字节解析")
+            try require(ChipAnalyzer.firstBytes("F0", count: 2) == nil, "字节不足应返回 nil")
         }
 
         // MARK: 特征值解码

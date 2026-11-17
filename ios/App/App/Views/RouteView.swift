@@ -16,6 +16,7 @@ struct RouteView: View {
                     if app.demoMode { DemoBanner() }
                     hero
                     detailCard
+                    volumeCard
                     evidenceCard
                     footer
                 }
@@ -114,6 +115,45 @@ struct RouteView: View {
             Text("来源：AVAudioSession.currentRoute / availableInputs")
                 .font(.caption2)
                 .foregroundStyle(Theme.secondaryText)
+        }
+        .card()
+    }
+
+    // MARK: - 音量与控制边界
+
+    private var volumeCard: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 8) {
+                Image(systemName: "speaker.wave.2.fill")
+                    .font(.subheadline)
+                    .foregroundStyle(Theme.accent)
+                Text("耳机音量").font(.headline)
+                Spacer(minLength: 4)
+                Text(snapshot.hasBluetoothOutput ? "A2DP 绝对音量" : "系统输出音量")
+                    .font(.caption2)
+                    .foregroundStyle(Theme.secondaryText)
+            }
+
+            SystemVolumeSlider()
+                .frame(height: 30)
+
+            Text("拖动滑杆调节系统音量。走 A2DP 时，iPhone 会把音量同步给耳机（绝对音量协议），"
+                + "所以这副滑杆实际控制的就是耳机音量。")
+                .font(.caption2)
+                .foregroundStyle(Theme.secondaryText)
+                .lineSpacing(2)
+
+            Divider()
+
+            Text("控制边界")
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(Theme.secondaryText)
+            Text("播放/暂停/切歌由蓝牙 AVRCP 交给系统与耳机按键；"
+                + "降噪、通透、EQ、固件升级属于厂商私有 BLE 协议，iOS 没有统一 API。"
+                + "本 App 能直接发的是「音量」；耳机若暴露标准 MCS，详情页还能发播放控制。")
+                .font(.caption2)
+                .foregroundStyle(Theme.tertiaryText)
+                .lineSpacing(2)
         }
         .card()
     }

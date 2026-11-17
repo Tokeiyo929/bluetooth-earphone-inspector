@@ -4,12 +4,18 @@ struct PeripheralDetailView: View {
     @EnvironmentObject var ble: BLEModel
     let peripheral: PeripheralSnapshot
 
+    @State private var isPlaying = false
+
     private var current: PeripheralSnapshot {
         ble.peripheral(id: peripheral.id) ?? peripheral
     }
 
     private var insight: PeripheralInsight {
         PeripheralAnalyzer.insight(for: current)
+    }
+
+    private var chip: ChipInsight {
+        ChipAnalyzer.insight(for: current)
     }
 
     var body: some View {
@@ -20,7 +26,9 @@ struct PeripheralDetailView: View {
                 if current.appleInfo == nil, let battery = current.batteryPercent {
                     batteryCard(battery)
                 }
+                chipCard
                 insightCard
+                if hasMediaControl { mediaControlCard }
                 if !deviceInfoRows.isEmpty { deviceInfoCard }
                 servicesCard
                 if let hex = current.manufacturerDataHex { rawCard(hex) }
@@ -172,6 +180,167 @@ struct PeripheralDetailView: View {
             }
         }
         .card()
+    }
+
+    // MARK: - 芯片与版本线索
+
+    private var chipCard: some View {
+        VStack(alignment: .leading, spacing: 11) {
+            HStack(spacing: 8) {
+                Image(systemName: "cpu")
+                    .font(.subheadline)
+                    .foregroundStyle(Theme.indigo)
+                Text("芯片与版本线索").font(.headline)
+                Spacer(minLength: 4)
+                Badge(text: chip.confidenceLabel,
+                      color: chip.confidence == "高" ? Theme.green
+                        : chip.confidence == "中" ? Theme.orange : Theme.grey)
+            }
+
+            if let brand = chip.brand {
+                InfoRow(title: "品牌", value: brand, titleWidth: 64)
+            }
+            if let vendor = chip.moduleVendor {
+                InfoRow(title: "方案商", value: vendor, titleWidth: 64)
+            }
+            if let family = chip.chipFamily {
+                InfoRow(title: "芯片系列", value: family, titleWidth: 64)
+            }
+            if chip.brand == nil && chip.moduleVendor == nil && chip.chipFamily == nil {
+                Text("设备没有自报厂商/型号，也没有厂商广播 ID —— 芯片只能靠厂商或拆机确认。")
+                    .font(.footnote)
+                    .foregroundStyle(Theme.secondaryText)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            if chip.hasAnyClue {
+                Divider()
+                Text("原始线索")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(Theme.secondaryText)
+                ForEach(Array(chip.clues.prefix(6))) { clue in
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text("\(clue.source) · \(clue.field)")
+                            .font(.caption2)
+                            .foregroundStyle(Theme.tertiaryText)
+                        Text(clue.value)
+                            .font(.caption)
+                            .foregroundStyle(Theme.secondaryText)
+                            .textSelection(.enabled)
+                    }
+                    .padding(.vertical, 1)
+                }
+            }
+
+            Divider()
+
+            HStack(alignment: .top, spacing: 8) {
+                Image(systemName: "number")
+                    .font(.caption)
+                    .foregroundStyle(chip.versionVerdict.contains("5.2") ? Theme.green : Theme.orange)
+                    .padding(.top, 1)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("蓝牙版本")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(Theme.secondaryText)
+                    Text(chip.versionVerdict)
+                        .font(.footnote.weight(.semibold))
+                        .foregroundStyle(Color.primary)
+                }
+            }
+            ForEach(chip.versionEvidence.indices, id: \.self) { index in
+                HStack(alignment: .top, spacing: 8) {
+                    Image(systemName: "checkmark.circle")
+                        .font(.caption2)
+                        .foregroundStyle(Theme.secondaryText)
+                        .padding(.top, 2)
+                    Text(chip.versionEvidence[index])
+                        .font(.caption)
+                        .foregroundStyle(Theme.secondaryText)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+
+            Divider()
+            ForEach(chip.notes.indices, id: \.self) { index in
+                Text(chip.notes[index])
+                    .font(.caption2)
+                    .foregroundStyle(Theme.tertiaryText)
+                    .lineSpacing(2)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .card()
+    }
+
+    // MARK: - 标准 MCS 播放控制
+
+    private var mediaControlService: GATTServiceSnapshot? {
+        current.services.first {
+            guard let short = BluetoothProtocolCatalog.shortUUID($0.uuid) else { return false }
+            return short == 0x1848 || short == 0x1849
+        }
+    }
+
+    private var hasMediaControl: Bool {
+        guard let service = mediaControlService else { return false }
+        return service.characteristics.contains {
+            BluetoothProtocolCatalog.shortUUID($0.uuid) == 0x2BA4
+        }
+    }
+
+    private var mediaControlCard: some View {
+        VStack(alignment: .leading, spacing: 11) {
+            HStack(spacing: 8) {
+                Image(systemName: "play.circle")
+                    .font(.subheadline)
+                    .foregroundStyle(Theme.accent)
+                Text("播放控制").font(.headline)
+                Spacer()
+                Badge(text: "标准 MCS", color: Theme.green)
+            }
+
+            HStack(spacing: 10) {
+                controlButton("backward.fill") {
+                    ble.writeMediaControl(0x04, peripheralID: current.id)
+                }
+                controlButton(isPlaying ? "pause.fill" : "play.fill") {
+                    let opcode: UInt8 = isPlaying ? 0x02 : 0x01
+                    isPlaying.toggle()
+                    ble.writeMediaControl(opcode, peripheralID: current.id)
+                }
+                controlButton("forward.fill") {
+                    ble.writeMediaControl(0x05, peripheralID: current.id)
+                }
+            }
+
+            if let message = ble.controlMessage {
+                Text(message)
+                    .font(.caption2)
+                    .foregroundStyle(Theme.secondaryText)
+            }
+
+            Text("用的是蓝牙标准的 Media Control Service（0x1848）控制点 0x2BA4。"
+                + "降噪、通透、EQ 属于厂商私有协议，iOS 没有统一 API；"
+                + "这类功能要用厂商 App（如 Sony Headphones Connect）。")
+                .font(.caption2)
+                .foregroundStyle(Theme.tertiaryText)
+                .lineSpacing(2)
+        }
+        .card()
+    }
+
+    private func controlButton(_ systemName: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Image(systemName: systemName)
+                .font(.system(size: 17, weight: .semibold))
+                .foregroundStyle(Theme.accent)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 11)
+                .background(Theme.accent.opacity(0.10))
+                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+        }
+        .buttonStyle(.plain)
     }
 
     // MARK: - 设备信息
