@@ -108,7 +108,8 @@ struct RouteView: View {
             }
             ForEach(detailRows.indices, id: \.self) { index in
                 InfoRow(title: detailRows[index].0, value: detailRows[index].1)
-            }            Divider()
+            }
+            Divider()
             Text("来源：AVAudioSession.currentRoute / availableInputs")
                 .font(.caption2)
                 .foregroundStyle(.secondary)
