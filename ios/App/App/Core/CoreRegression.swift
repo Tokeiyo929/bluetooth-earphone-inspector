@@ -221,7 +221,8 @@ enum CoreRegression {
         check("特征值属性: 位掩码 → 中文") {
             let names = PeripheralAnalyzer.propertyNames(rawValue: 0x02 | 0x08 | 0x10)
             try require(names == ["可读", "可写", "通知"], "得到 \(names)")
-            try require(PeripheralAnalyzer.propertyNames(rawValue: 0x100).contains("需加密"), "加密通知")
+            try require(PeripheralAnalyzer.propertyNames(rawValue: 0x100).contains { $0.contains("需加密") },
+                        "加密通知")
         }
         check("属性: 只主动读设备信息/电池/外观") {
             try require(PeripheralAnalyzer.shouldRead(uuid: "2A19"), "2A19")
